@@ -1,0 +1,76 @@
+# ----------------------------------------
+# PHP / Composer
+# ----------------------------------------
+vendor/
+composer.lock
+composer.phar
+
+# Ignore environment configs
+.env
+.env.*
+!.env.example
+
+# ----------------------------------------
+# Logs / Runtime
+# ----------------------------------------
+logs/
+log/
+*.log
+runtime/
+storage/
+tmp/
+cache/
+*.cache
+
+# Swoole server generated files
+swoole.pid
+swoole.log
+
+# ----------------------------------------
+# IDE / Editor
+# ----------------------------------------
+# PhpStorm
+.idea/
+#.idea/**
+
+# VSCode
+.vscode/
+.history/
+
+# Sublime
+*.sublime-project
+*.sublime-workspace
+
+# ----------------------------------------
+# Operating System
+# ----------------------------------------
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*.swp
+*.swo
+*~
+
+# ----------------------------------------
+# Node
+# ----------------------------------------
+node_modules/
+npm-debug.log
+yarn-error.log
+dist/
+build/
+
+# ----------------------------------------
+# Docker / Containers
+# ----------------------------------------
+docker-compose.override.yml
+docker-data/
+.docker/
