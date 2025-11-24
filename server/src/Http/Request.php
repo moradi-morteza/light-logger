@@ -12,6 +12,8 @@ class Request
     private SwooleRequest $swooleRequest;
     private array $params = [];
     private ?array $jsonBody = null;
+    private ?array $user = null;
+    private ?string $authToken = null;
 
     public function __construct(SwooleRequest $swooleRequest)
     {
@@ -201,5 +203,59 @@ class Request
     {
         $contentType = $this->getHeader('content-type') ?? '';
         return str_contains($contentType, 'application/json');
+    }
+
+    /**
+     * Get the auth token from Authorization header.
+     */
+    public function getAuthToken(): ?string
+    {
+        if ($this->authToken) {
+            return $this->authToken;
+        }
+
+        $authHeader = $this->getHeader('authorization');
+        if (!$authHeader) {
+            return null;
+        }
+
+        // Extract Bearer token
+        if (preg_match('/^Bearer\s+(.+)$/i', $authHeader, $matches)) {
+            return $matches[1];
+        }
+
+        return null;
+    }
+
+    /**
+     * Set the auth token (used by middleware).
+     */
+    public function setAuthToken(string $token): void
+    {
+        $this->authToken = $token;
+    }
+
+    /**
+     * Set the authenticated user (used by middleware).
+     */
+    public function setUser(array $user): void
+    {
+        $this->user = $user;
+    }
+
+    /**
+     * Get the authenticated user.
+     */
+    public function getUser(): ?array
+    {
+        return $this->user;
+    }
+
+    /**
+     * Check if the request is authenticated.
+     */
+    public function isAuthenticated(): bool
+    {
+        return $this->user !== null;
     }
 }

@@ -7,7 +7,7 @@ const router = useRouter()
 const installStore = useInstallStore()
 
 const currentStep = ref(1)
-const totalSteps = 4
+const totalSteps = 5
 
 const config = reactive({
   app: {
@@ -32,6 +32,12 @@ const config = reactive({
   elasticsearch: {
     host: 'elasticsearch',
     port: '9200',
+  },
+  user: {
+    username: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
   },
 })
 
@@ -90,6 +96,9 @@ const canProceed = computed(() => {
     case 3:
       return config.redis.host && config.redis.port
     case 4:
+      return config.user.username && config.user.email && config.user.password &&
+             config.user.password === config.user.confirmPassword
+    case 5:
       return testResults.database?.success
     default:
       return false
@@ -199,44 +208,47 @@ function goToDashboard() {
         </div>
 
         <!-- Step 1: Welcome -->
-        <div v-else-if="currentStep === 1" class="space-y-6">
+        <div v-else-if="currentStep === 1" class="space-y-4">
           <div class="text-center">
             <h2 class="text-2xl font-bold text-white mb-2">Welcome to Light Logger</h2>
-            <p class="text-slate-400">
+            <p class="text-slate-400 text-sm">
               Let's configure your logging server. This wizard will guide you through
               setting up database and Redis connections.
             </p>
           </div>
 
-          <div class="bg-slate-700/50 rounded-lg p-4">
-            <h3 class="font-medium text-white mb-2">What you'll need:</h3>
-            <ul class="text-slate-400 text-sm space-y-1">
-              <li>&#8226; Database credentials (MariaDB or PostgreSQL)</li>
-              <li>&#8226; Redis server connection details</li>
-              <li>&#8226; Optional: Elasticsearch configuration</li>
-            </ul>
-          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="bg-slate-700/50 p-3">
+              <h3 class="font-medium text-white mb-2 text-sm">What you'll need:</h3>
+              <ul class="text-slate-400 text-xs space-y-1">
+                <li>&#8226; Database credentials (MariaDB or PostgreSQL)</li>
+                <li>&#8226; Redis server connection details</li>
+                <li>&#8226; Admin account details (username, email, password)</li>
+              </ul>
+            </div>
 
-          <div class="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
-            <p class="text-blue-400 text-sm">
-              <strong>Docker Users:</strong> Default values are pre-configured for Docker Compose setup.
-              You can proceed with defaults if using the provided docker-compose.yml.
-            </p>
+            <div class="bg-blue-500/10 border border-blue-500/30 p-3">
+              <h3 class="font-medium text-blue-400 mb-2 text-sm">Docker Users:</h3>
+              <p class="text-blue-400 text-xs">
+                Default values are pre-configured for Docker Compose setup.
+                You can proceed with defaults if using the provided docker-compose.yml.
+              </p>
+            </div>
           </div>
         </div>
 
         <!-- Step 2: Database Configuration -->
-        <div v-else-if="currentStep === 2" class="space-y-6">
+        <div v-else-if="currentStep === 2" class="space-y-4">
           <div>
-            <h2 class="text-2xl font-bold text-white mb-2">Database Configuration</h2>
-            <p class="text-slate-400">Configure your database connection.</p>
+            <h2 class="text-xl font-bold text-white mb-1">Database Configuration</h2>
+            <p class="text-slate-400 text-sm">Configure your database connection.</p>
           </div>
 
-          <div class="grid grid-cols-2 gap-4">
-            <div class="col-span-2">
-              <label class="label">Database Driver</label>
+          <div class="grid grid-cols-3 gap-3">
+            <div>
+              <label class="label">Driver</label>
               <select v-model="config.database.driver" @change="updateDatabasePort" class="select">
-                <option value="mariadb">MariaDB / MySQL</option>
+                <option value="mariadb">MariaDB</option>
                 <option value="postgres">PostgreSQL</option>
               </select>
             </div>
@@ -251,7 +263,7 @@ function goToDashboard() {
               <input v-model="config.database.port" type="text" class="input" placeholder="3306" />
             </div>
 
-            <div class="col-span-2">
+            <div>
               <label class="label">Database Name</label>
               <input v-model="config.database.database" type="text" class="input" placeholder="light_logger" />
             </div>
@@ -268,7 +280,7 @@ function goToDashboard() {
           </div>
 
           <!-- Test Connection -->
-          <div class="flex items-center gap-4">
+          <div class="flex items-center gap-3">
             <button
               @click="testDatabaseConnection"
               :disabled="testing.database"
@@ -279,10 +291,10 @@ function goToDashboard() {
 
             <div v-if="testResults.database" class="flex items-center gap-2">
               <span
-                class="w-3 h-3 rounded-full"
+                class="w-2 h-2"
                 :class="testResults.database.success ? 'bg-emerald-500' : 'bg-red-500'"
               ></span>
-              <span :class="testResults.database.success ? 'text-emerald-400' : 'text-red-400'">
+              <span class="text-sm" :class="testResults.database.success ? 'text-emerald-400' : 'text-red-400'">
                 {{ testResults.database.message }}
               </span>
             </div>
@@ -290,13 +302,13 @@ function goToDashboard() {
         </div>
 
         <!-- Step 3: Redis Configuration -->
-        <div v-else-if="currentStep === 3" class="space-y-6">
+        <div v-else-if="currentStep === 3" class="space-y-4">
           <div>
-            <h2 class="text-2xl font-bold text-white mb-2">Redis Configuration</h2>
-            <p class="text-slate-400">Configure your Redis connection for caching and pub/sub.</p>
+            <h2 class="text-xl font-bold text-white mb-1">Redis Configuration</h2>
+            <p class="text-slate-400 text-sm">Configure your Redis connection for caching and pub/sub.</p>
           </div>
 
-          <div class="grid grid-cols-2 gap-4">
+          <div class="grid grid-cols-3 gap-3">
             <div>
               <label class="label">Host</label>
               <input v-model="config.redis.host" type="text" class="input" placeholder="localhost" />
@@ -307,14 +319,14 @@ function goToDashboard() {
               <input v-model="config.redis.port" type="text" class="input" placeholder="6379" />
             </div>
 
-            <div class="col-span-2">
+            <div>
               <label class="label">Password (optional)</label>
-              <input v-model="config.redis.password" type="password" class="input" placeholder="Leave empty if no password" />
+              <input v-model="config.redis.password" type="password" class="input" placeholder="Leave empty if none" />
             </div>
           </div>
 
           <!-- Test Connection -->
-          <div class="flex items-center gap-4">
+          <div class="flex items-center gap-3">
             <button
               @click="testRedisConnection"
               :disabled="testing.redis"
@@ -325,28 +337,90 @@ function goToDashboard() {
 
             <div v-if="testResults.redis" class="flex items-center gap-2">
               <span
-                class="w-3 h-3 rounded-full"
+                class="w-2 h-2"
                 :class="testResults.redis.success ? 'bg-emerald-500' : 'bg-red-500'"
               ></span>
-              <span :class="testResults.redis.success ? 'text-emerald-400' : 'text-red-400'">
+              <span class="text-sm" :class="testResults.redis.success ? 'text-emerald-400' : 'text-red-400'">
                 {{ testResults.redis.message }}
               </span>
             </div>
           </div>
         </div>
 
-        <!-- Step 4: Review & Install -->
-        <div v-else-if="currentStep === 4" class="space-y-6">
+        <!-- Step 4: Create Admin Account -->
+        <div v-else-if="currentStep === 4" class="space-y-4">
           <div>
-            <h2 class="text-2xl font-bold text-white mb-2">Review Configuration</h2>
-            <p class="text-slate-400">Review your settings before completing the installation.</p>
+            <h2 class="text-xl font-bold text-white mb-1">Create Admin Account</h2>
+            <p class="text-slate-400 text-sm">Create your administrator account to access the panel.</p>
           </div>
 
-          <!-- Summary -->
-          <div class="space-y-4">
-            <div class="bg-slate-700/50 rounded-lg p-4">
-              <h3 class="font-medium text-white mb-2">Database</h3>
-              <div class="text-slate-400 text-sm space-y-1">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="label">Username</label>
+              <input
+                v-model="config.user.username"
+                type="text"
+                class="input"
+                placeholder="admin"
+                autocomplete="username"
+              />
+            </div>
+
+            <div>
+              <label class="label">Email</label>
+              <input
+                v-model="config.user.email"
+                type="email"
+                class="input"
+                placeholder="admin@example.com"
+                autocomplete="email"
+              />
+            </div>
+
+            <div>
+              <label class="label">Password</label>
+              <input
+                v-model="config.user.password"
+                type="password"
+                class="input"
+                placeholder="Min 8 characters"
+                autocomplete="new-password"
+              />
+            </div>
+
+            <div>
+              <label class="label">Confirm Password</label>
+              <input
+                v-model="config.user.confirmPassword"
+                type="password"
+                class="input"
+                placeholder="Confirm password"
+                autocomplete="new-password"
+              />
+            </div>
+          </div>
+
+          <div v-if="config.user.password && config.user.confirmPassword && config.user.password !== config.user.confirmPassword" class="bg-red-500/10 border border-red-500/30 p-2">
+            <p class="text-red-400 text-sm">Passwords do not match</p>
+          </div>
+
+          <div v-if="config.user.password && config.user.password.length < 8" class="bg-yellow-500/10 border border-yellow-500/30 p-2">
+            <p class="text-yellow-400 text-sm">Password should be at least 8 characters</p>
+          </div>
+        </div>
+
+        <!-- Step 5: Review & Install -->
+        <div v-else-if="currentStep === 5" class="space-y-4">
+          <div>
+            <h2 class="text-xl font-bold text-white mb-1">Review Configuration</h2>
+            <p class="text-slate-400 text-sm">Review your settings before completing the installation.</p>
+          </div>
+
+          <!-- Summary in 2 columns -->
+          <div class="grid grid-cols-2 gap-3">
+            <div class="bg-slate-700/50 p-3">
+              <h3 class="font-medium text-white mb-2 text-sm">Database</h3>
+              <div class="text-slate-400 text-xs space-y-1">
                 <p><span class="text-slate-500">Driver:</span> {{ config.database.driver }}</p>
                 <p><span class="text-slate-500">Host:</span> {{ config.database.host }}:{{ config.database.port }}</p>
                 <p><span class="text-slate-500">Database:</span> {{ config.database.database }}</p>
@@ -354,7 +428,7 @@ function goToDashboard() {
               </div>
               <div class="mt-2 flex items-center gap-2">
                 <span
-                  class="w-2 h-2 rounded-full"
+                  class="w-2 h-2"
                   :class="testResults.database?.success ? 'bg-emerald-500' : 'bg-yellow-500'"
                 ></span>
                 <span class="text-xs" :class="testResults.database?.success ? 'text-emerald-400' : 'text-yellow-400'">
@@ -363,15 +437,15 @@ function goToDashboard() {
               </div>
             </div>
 
-            <div class="bg-slate-700/50 rounded-lg p-4">
-              <h3 class="font-medium text-white mb-2">Redis</h3>
-              <div class="text-slate-400 text-sm space-y-1">
+            <div class="bg-slate-700/50 p-3">
+              <h3 class="font-medium text-white mb-2 text-sm">Redis</h3>
+              <div class="text-slate-400 text-xs space-y-1">
                 <p><span class="text-slate-500">Host:</span> {{ config.redis.host }}:{{ config.redis.port }}</p>
                 <p><span class="text-slate-500">Password:</span> {{ config.redis.password ? '••••••••' : 'None' }}</p>
               </div>
               <div class="mt-2 flex items-center gap-2">
                 <span
-                  class="w-2 h-2 rounded-full"
+                  class="w-2 h-2"
                   :class="testResults.redis?.success ? 'bg-emerald-500' : 'bg-yellow-500'"
                 ></span>
                 <span class="text-xs" :class="testResults.redis?.success ? 'text-emerald-400' : 'text-yellow-400'">
@@ -379,24 +453,31 @@ function goToDashboard() {
                 </span>
               </div>
             </div>
+
+            <div class="bg-slate-700/50 p-3 col-span-2">
+              <h3 class="font-medium text-white mb-2 text-sm">Admin Account</h3>
+              <div class="text-slate-400 text-xs space-y-1">
+                <p><span class="text-slate-500">Username:</span> {{ config.user.username }}</p>
+                <p><span class="text-slate-500">Email:</span> {{ config.user.email }}</p>
+              </div>
+            </div>
           </div>
 
           <!-- Warning if database not tested -->
-          <div v-if="!testResults.database?.success" class="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
+          <div v-if="!testResults.database?.success" class="bg-yellow-500/10 border border-yellow-500/30 p-2">
             <p class="text-yellow-400 text-sm">
               <strong>Warning:</strong> Database connection has not been tested successfully.
-              Please go back and test the connection before proceeding.
             </p>
           </div>
 
           <!-- Install Error -->
-          <div v-if="installError" class="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+          <div v-if="installError" class="bg-red-500/10 border border-red-500/30 p-2">
             <p class="text-red-400 text-sm">{{ installError }}</p>
           </div>
         </div>
 
         <!-- Navigation Buttons -->
-        <div v-if="!installSuccess" class="flex justify-between mt-8 pt-6 border-t border-slate-700">
+        <div v-if="!installSuccess" class="flex justify-between mt-6 pt-4 border-t border-slate-700">
           <button
             v-if="currentStep > 1"
             @click="prevStep"

@@ -10,7 +10,8 @@ services:
     ports:
       - "9501:9501"
     volumes:
-      - ./server:/app/server
+      - ./server:/app/server:ro  # Read-only for source code
+      - app-data:/app/server-data  # Writable volume for .installed, .env
       - ./panel/dist:/app/panel/dist:ro
     environment:
       - APP_DEBUG=true
@@ -128,6 +129,7 @@ services:
     restart: unless-stopped
 
 volumes:
+  app-data:
   mariadb-data:
   postgres-data:
   redis-data:

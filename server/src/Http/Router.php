@@ -54,7 +54,31 @@ class Router
             'path' => $path,
             'handler' => $handler,
             'pattern' => $this->pathToPattern($path),
+            'middleware' => [],
         ];
+
+        return $this;
+    }
+
+    /**
+     * Add middleware to the last registered route.
+     */
+    public function middleware($middleware): self
+    {
+        if (empty($this->routes)) {
+            return $this;
+        }
+
+        $lastIndex = count($this->routes) - 1;
+
+        if (is_array($middleware)) {
+            $this->routes[$lastIndex]['middleware'] = array_merge(
+                $this->routes[$lastIndex]['middleware'],
+                $middleware
+            );
+        } else {
+            $this->routes[$lastIndex]['middleware'][] = $middleware;
+        }
 
         return $this;
     }
@@ -96,7 +120,8 @@ class Router
                 $request->setParams($params);
 
                 try {
-                    $route['handler']($request, $response);
+                    // Execute middleware chain
+                    $this->executeMiddleware($route, $request, $response);
                 } catch (\Throwable $e) {
                     $response->error($e->getMessage(), 500);
                 }
@@ -107,6 +132,43 @@ class Router
 
         // No route found
         $response->error('Not Found', 404);
+    }
+
+    /**
+     * Execute middleware chain and final handler
+     */
+    private function executeMiddleware(array $route, Request $request, Response $response): void
+    {
+        $middleware = $route['middleware'];
+        $handler = $route['handler'];
+
+        // If no middleware, execute handler directly
+        if (empty($middleware)) {
+            $handler($request, $response);
+            return;
+        }
+
+        // Build middleware chain
+        $next = function ($request, $response) use ($handler) {
+            $handler($request, $response);
+            return null;
+        };
+
+        // Wrap each middleware
+        for ($i = count($middleware) - 1; $i >= 0; $i--) {
+            $currentMiddleware = $middleware[$i];
+            $next = function ($request, $response) use ($currentMiddleware, $next) {
+                return $currentMiddleware->handle($request, $response, $next);
+            };
+        }
+
+        // Execute the chain
+        $result = $next($request, $response);
+
+        // If middleware returned a response, it already handled it
+        if ($result instanceof Response) {
+            return;
+        }
     }
 
 }

@@ -96,6 +96,18 @@ class InstallController extends Controller
             return;
         }
 
+        // Validate user data
+        if (!isset($data['user'])) {
+            $this->error($response, 'User information is required', 400);
+            return;
+        }
+
+        $userErrors = $this->validateRequired($data['user'], ['username', 'email', 'password']);
+        if (!empty($userErrors)) {
+            $this->error($response, $userErrors, 400);
+            return;
+        }
+
         // Test database connection before completing
         $dbTest = $this->install->testDatabaseConnection($data['database']);
         if (!$dbTest['success']) {

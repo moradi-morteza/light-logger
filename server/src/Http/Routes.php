@@ -6,6 +6,8 @@ use LightLogger\Controller\HealthController;
 use LightLogger\Controller\InstallController;
 use LightLogger\Controller\LogController;
 use LightLogger\Controller\ProjectController;
+use LightLogger\Controller\AuthController;
+use LightLogger\Middleware\AuthMiddleware;
 
 /**
  * Registers all HTTP routes for the application.
@@ -17,19 +19,25 @@ class Routes
     private LogController $logController;
     private InstallController $installController;
     private ProjectController $projectController;
+    private AuthController $authController;
+    private AuthMiddleware $authMiddleware;
 
     public function __construct(
         Router $router,
         HealthController $healthController,
         LogController $logController,
         InstallController $installController,
-        ProjectController $projectController
+        ProjectController $projectController,
+        AuthController $authController,
+        AuthMiddleware $authMiddleware
     ){
         $this->router = $router;
         $this->healthController = $healthController;
         $this->logController = $logController;
         $this->installController = $installController;
         $this->projectController = $projectController;
+        $this->authController = $authController;
+        $this->authMiddleware = $authMiddleware;
     }
 
     /**
@@ -39,6 +47,7 @@ class Routes
     {
         $this->registerSystemRoutes();
         $this->registerInstallRoutes();
+        $this->registerAuthRoutes();
         $this->registerProjectRoutes();
         $this->registerLogRoutes();
     }
@@ -64,14 +73,31 @@ class Routes
     }
 
     /**
-     * Register project management routes.
+     * Register authentication routes.
+     */
+    private function registerAuthRoutes(): void
+    {
+        $this->router->post('/api/auth/login', [$this->authController, 'login']);
+        $this->router->post('/api/auth/logout', [$this->authController, 'logout'])
+            ->middleware($this->authMiddleware);
+        $this->router->get('/api/auth/me', [$this->authController, 'me'])
+            ->middleware($this->authMiddleware);
+        $this->router->post('/api/auth/check', [$this->authController, 'check']);
+    }
+
+    /**
+     * Register project management routes (protected).
      */
     private function registerProjectRoutes(): void
     {
-        $this->router->get('/api/projects', [$this->projectController, 'index']);
-        $this->router->post('/api/projects', [$this->projectController, 'store']);
-        $this->router->get('/api/projects/{id}', [$this->projectController, 'show']);
-        $this->router->delete('/api/projects/{id}', [$this->projectController, 'destroy']);
+        $this->router->get('/api/projects', [$this->projectController, 'index'])
+            ->middleware($this->authMiddleware);
+        $this->router->post('/api/projects', [$this->projectController, 'store'])
+            ->middleware($this->authMiddleware);
+        $this->router->get('/api/projects/{id}', [$this->projectController, 'show'])
+            ->middleware($this->authMiddleware);
+        $this->router->delete('/api/projects/{id}', [$this->projectController, 'destroy'])
+            ->middleware($this->authMiddleware);
     }
 
     /**

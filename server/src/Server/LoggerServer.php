@@ -6,6 +6,8 @@ use LightLogger\Controller\HealthController;
 use LightLogger\Controller\InstallController;
 use LightLogger\Controller\LogController;
 use LightLogger\Controller\ProjectController;
+use LightLogger\Controller\AuthController;
+use LightLogger\Middleware\AuthMiddleware;
 use LightLogger\Database\Database;
 use LightLogger\Http\Router;
 use LightLogger\Http\Routes;
@@ -63,6 +65,8 @@ class LoggerServer
         $logController = new LogController();
         $installController = new InstallController();
         $projectController = new ProjectController();
+        $authController = new AuthController();
+        $authMiddleware = new AuthMiddleware();
 
         // Register routes
         $routes = new Routes(
@@ -71,6 +75,8 @@ class LoggerServer
             $logController,
             $installController,
             $projectController,
+            $authController,
+            $authMiddleware
         );
 
         $routes->register();
@@ -242,7 +248,17 @@ class LoggerServer
         $contentType = $mimeTypes[$extension] ?? 'application/octet-stream';
 
         $response->header('Content-Type', $contentType);
-        $response->header('Cache-Control', 'public, max-age=31536000');
+
+        // HTML files should not be cached (always get latest)
+        // Assets (JS/CSS) have hashed names and can be cached forever
+        if ($extension === 'html') {
+            $response->header('Cache-Control', 'no-cache, no-store, must-revalidate');
+            $response->header('Pragma', 'no-cache');
+            $response->header('Expires', '0');
+        } else {
+            $response->header('Cache-Control', 'public, max-age=31536000, immutable');
+        }
+
         $response->sendfile($filePath);
     }
 

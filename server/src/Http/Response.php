@@ -80,6 +80,20 @@ class Response
     }
 
     /**
+     * Send an unauthorized response (401).
+     */
+    public function unauthorized(array $data = []): Response
+    {
+        $response = array_merge([
+            'success' => false,
+            'message' => 'Unauthorized'
+        ], $data);
+
+        $this->json($response, 401);
+        return $this;
+    }
+
+    /**
      * Send a created response (201).
      */
     public function created(array $data = [], string $message = 'Created'): void

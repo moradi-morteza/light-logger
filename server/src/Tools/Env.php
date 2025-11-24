@@ -45,7 +45,20 @@ class Env
     public static function get(string $key, mixed $default = null): mixed
     {
         $key = strtolower($key);
-        return self::$data[$key] ?? $default;
+
+        // First check loaded .env data
+        if (isset(self::$data[$key])) {
+            return self::$data[$key];
+        }
+
+        // Fallback to system environment variables (from Docker)
+        $envKey = strtoupper($key);
+        $envValue = getenv($envKey);
+        if ($envValue !== false) {
+            return $envValue;
+        }
+
+        return $default;
     }
 
     /**

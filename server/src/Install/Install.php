@@ -14,9 +14,17 @@ class Install
 
     public function __construct()
     {
-        $this->envPath = dirname(__DIR__, 2) . '/.env';
+        // Use server-data volume for writable files (not mounted Windows directory)
+        $dataDir = '/app/server-data';
+
+        // Create data directory if it doesn't exist
+        if (!is_dir($dataDir)) {
+            mkdir($dataDir, 0777, true);
+        }
+
+        $this->envPath = $dataDir . '/.env';
         $this->envExamplePath = dirname(__DIR__, 2) . '/.env.example';
-        $this->lockFilePath = dirname(__DIR__, 2) . '/.installed';
+        $this->lockFilePath = $dataDir . '/.installed';
     }
 
     /**
@@ -173,6 +181,30 @@ class Install
             }
             Log::success("Lock file verified to exist");
 
+            // Run database migrations to create tables
+            Log::info("Running database migrations...");
+            try {
+                \LightLogger\Database\Database::runMigrations();
+                Log::success("Database migrations completed");
+            } catch (\Exception $e) {
+                throw new Exception('Failed to run migrations: ' . $e->getMessage());
+            }
+
+            // Create admin user if provided
+            if (isset($config['user'])) {
+                Log::info("Creating admin user...");
+                $userResult = $this->createAdminUser(
+                    $config['user']['username'],
+                    $config['user']['email'],
+                    $config['user']['password']
+                );
+
+                if (!$userResult['success']) {
+                    throw new Exception('Failed to create admin user: ' . $userResult['message']);
+                }
+                Log::success("Admin user created successfully");
+            }
+
             Log::success("Installation completed successfully!");
 
             return [
@@ -257,5 +289,47 @@ class Install
                 'port' => Env::get('elasticsearch_port', '9200'),
             ],
         ];
+    }
+
+    /**
+     * Create admin user during installation.
+     */
+    public function createAdminUser(string $username, string $email, string $password): array
+    {
+        try {
+            // Import User model
+            require_once dirname(__DIR__) . '/Model/User.php';
+
+            // Check if user already exists
+            $existingUser = \LightLogger\Model\User::findByUsername($username);
+            if ($existingUser) {
+                return [
+                    'success' => false,
+                    'message' => 'Username already exists'
+                ];
+            }
+
+            $existingEmail = \LightLogger\Model\User::findByEmail($email);
+            if ($existingEmail) {
+                return [
+                    'success' => false,
+                    'message' => 'Email already exists'
+                ];
+            }
+
+            // Create the user
+            $user = \LightLogger\Model\User::create($username, $email, $password);
+
+            return [
+                'success' => true,
+                'message' => 'Admin user created successfully',
+                'user_id' => $user['id']
+            ];
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'message' => $e->getMessage()
+            ];
+        }
     }
 }
