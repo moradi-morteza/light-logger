@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { api } from '../utils/api'
 
 export const useProjectsStore = defineStore('projects', () => {
   const projects = ref([])
@@ -11,7 +12,7 @@ export const useProjectsStore = defineStore('projects', () => {
     error.value = null
 
     try {
-      const response = await fetch('/api/projects')
+      const response = await api.get('/api/projects')
       const data = await response.json()
 
       if (data.success) {
@@ -32,12 +33,7 @@ export const useProjectsStore = defineStore('projects', () => {
     error.value = null
 
     try {
-      const response = await fetch('/api/projects', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name }),
-      })
-
+      const response = await api.post('/api/projects', { name })
       const data = await response.json()
 
       if (data.success) {
@@ -60,10 +56,7 @@ export const useProjectsStore = defineStore('projects', () => {
     error.value = null
 
     try {
-      const response = await fetch(`/api/projects/${id}`, {
-        method: 'DELETE',
-      })
-
+      const response = await api.delete(`/api/projects/${id}`)
       const data = await response.json()
 
       if (data.success) {

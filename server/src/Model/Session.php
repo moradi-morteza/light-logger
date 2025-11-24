@@ -3,6 +3,7 @@
 namespace LightLogger\Model;
 
 use LightLogger\Database\Database;
+use LightLogger\Tools\Log\Log;
 use PDO;
 
 class Session
@@ -63,6 +64,12 @@ class Session
 
         $stmt->execute(['token' => $token]);
         $session = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$session) {
+            Log::debug("Session not found for token: " . substr($token, 0, 16) . "...");
+        } else {
+            Log::debug("Session found for user_id: " . $session['user_id']);
+        }
 
         return $session ?: null;
     }

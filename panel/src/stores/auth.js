@@ -30,12 +30,12 @@ export const useAuthStore = defineStore('auth', () => {
       const data = await response.json()
 
       if (response.ok && data.success) {
-        user.value = data.user
-        token.value = data.token
+        user.value = data.data.user
+        token.value = data.data.token
         isAuthenticated.value = true
 
         // Store token in localStorage
-        localStorage.setItem('auth_token', data.token)
+        localStorage.setItem('auth_token', data.data.token)
 
         return { success: true }
       } else {
@@ -97,7 +97,7 @@ export const useAuthStore = defineStore('auth', () => {
       const data = await response.json()
 
       if (response.ok && data.success) {
-        user.value = data.user
+        user.value = data.data.user
         isAuthenticated.value = true
       } else {
         // Token is invalid, clear it

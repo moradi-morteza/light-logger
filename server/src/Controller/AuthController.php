@@ -35,11 +35,10 @@ class AuthController extends Controller
         }
 
         $response->success([
-            'success' => true,
             'token' => $result['token'],
             'user' => $result['user'],
             'expires_at' => $result['expires_at']
-        ]);
+        ], 'Login successful');
     }
 
     /**

@@ -89,6 +89,21 @@ function formatDate(dateString) {
       </button>
     </div>
 
+    <!-- Error Message -->
+    <div v-if="projectsStore.error" class="bg-red-500/10 border border-red-500/30 p-4 mb-4 flex items-start gap-3">
+      <svg class="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+      </svg>
+      <div class="flex-1">
+        <p class="text-red-400 font-medium">{{ projectsStore.error }}</p>
+      </div>
+      <button @click="projectsStore.error = null" class="text-red-400 hover:text-red-300">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+
     <!-- Projects List -->
     <div v-if="projectsStore.loading && projectsStore.projects.length === 0" class="card text-center py-12">
       <div class="animate-spin w-8 h-8 border-4 border-primary-500 border-t-transparent mx-auto"></div>
