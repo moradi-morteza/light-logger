@@ -2,6 +2,11 @@
 
 namespace LightLogger\Server;
 
+use LightLogger\Controller\HealthController;
+use LightLogger\Controller\LogController;
+use LightLogger\Controller\ProjectController;
+use LightLogger\Http\Router;
+use LightLogger\Http\Routes;
 use LightLogger\Tools\Env;
 use LightLogger\Tools\Log\Log;
 use Swoole\WebSocket\Server;
@@ -15,6 +20,9 @@ class LoggerServer
     private string $host;
     private int $port;
 
+    // HTTP handling
+    private Router $router;
+
     public function __construct(string $host, int $port)
     {
         $this->host = $host;
@@ -27,8 +35,35 @@ class LoggerServer
          */
         $this->server = new Server($host, $port);
 
+        $this->initializeRoutes();
         $this->configureServer();
         $this->registerEvents();
+    }
+
+    /**
+     * Initialize HTTP routes and controllers.
+     */
+    private function initializeRoutes(): void
+    {
+        $this->router = new Router();
+
+        // Create controllers
+        $healthController = new HealthController(
+            $this->host,
+            $this->port
+        );
+
+        $logController = new LogController();
+
+
+        // Register routes
+        $routes = new Routes(
+            $this->router,
+            $healthController,
+            $logController,
+        );
+
+        $routes->register();
     }
 
     /**
@@ -88,26 +123,19 @@ class LoggerServer
     /**
      * Handle incoming HTTP requests.
      */
-    public function onHttpRequest(Request $req, Response $res): void
+    public function onHttpRequest(Request $request, Response $response): void
     {
-        $uri = $req->server['request_uri'] ?? '/';
-
-        // Basic health-check endpoint for Kubernetes or load balancers
-        if ($uri === '/health') {
-            $res->header('Content-Type', 'application/json');
-            $res->end(json_encode(['status' => 'ok', 'time' => time()]));
+        // Handle CORS preflight
+        $method = strtoupper($request->server['request_method'] ?? 'GET');
+        if ($method === 'OPTIONS') {
+            $res = new \LightLogger\Http\Response($response);
+            $res->handleOptions();
             return;
         }
 
-        // Root endpoint
-        if ($uri === '/') {
-            $res->end("LoggerSystem: WebSocket + HTTP server running");
-            return;
-        }
+        // Dispatch to router
+        $this->router->dispatch($request, $response);
 
-        // All other routes
-        $res->status(404);
-        $res->end("Not Found");
     }
 
     /* ---------------------------------------------------------
