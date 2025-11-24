@@ -48,6 +48,24 @@ class Env
         return self::$data[$key] ?? $default;
     }
 
+    /**
+     * Set a value at runtime (for post-install updates).
+     */
+    public static function set(string $key, mixed $value): void
+    {
+        $key = strtolower($key);
+        self::$data[$key] = $value;
+    }
+
+    /**
+     * Reload env file from disk.
+     */
+    public static function reload(string $path): void
+    {
+        self::$data = [];
+        self::load($path);
+    }
+
     public static function isProduction(): bool
     {
         return self::get('APP_ENV') === 'production';

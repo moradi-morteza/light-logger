@@ -1,0 +1,37 @@
+# Git
+.git
+.gitignore
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node modules (panel will be built locally and dist mounted)
+panel/node_modules/
+panel/.vite/
+
+# PHP development files
+server/vendor/
+server/.env
+server/phpunit.xml
+server/tests/
+
+# Docker
+docker-compose.override.yml
+docker-data/
+.docker/
+
+# Logs
+*.log
+logs/

@@ -3,10 +3,13 @@
 namespace LightLogger\Server;
 
 use LightLogger\Controller\HealthController;
+use LightLogger\Controller\InstallController;
 use LightLogger\Controller\LogController;
 use LightLogger\Controller\ProjectController;
+use LightLogger\Database\Database;
 use LightLogger\Http\Router;
 use LightLogger\Http\Routes;
+use LightLogger\Install\Install;
 use LightLogger\Tools\Env;
 use LightLogger\Tools\Log\Log;
 use Swoole\WebSocket\Server;
@@ -19,14 +22,18 @@ class LoggerServer
     private Server $server;
     private string $host;
     private int $port;
+    private string $panelPath;
 
     // HTTP handling
     private Router $router;
+    private Install $install;
 
     public function __construct(string $host, int $port)
     {
         $this->host = $host;
         $this->port = $port;
+        $this->panelPath = dirname(__DIR__, 3) . '/panel/dist';
+        $this->install = new Install();
 
         /**
          * Create a WebSocket server.
@@ -54,13 +61,16 @@ class LoggerServer
         );
 
         $logController = new LogController();
-
+        $installController = new InstallController();
+        $projectController = new ProjectController();
 
         // Register routes
         $routes = new Routes(
             $this->router,
             $healthController,
             $logController,
+            $installController,
+            $projectController,
         );
 
         $routes->register();
@@ -114,6 +124,16 @@ class LoggerServer
     {
         Log::$prefix = "W{$workerId}";
         Log::success("Worker #{$workerId} started");
+
+        // Run database migrations (only in first worker to avoid race conditions)
+        if ($workerId === 0 && $this->install->isInstalled()) {
+            try {
+                Log::info("Running database migrations...");
+                Database::runMigrations();
+            } catch (\Exception $e) {
+                Log::error("Migration failed: " . $e->getMessage());
+            }
+        }
     }
 
     /* ---------------------------------------------------------
@@ -133,9 +153,206 @@ class LoggerServer
             return;
         }
 
-        // Dispatch to router
-        $this->router->dispatch($request, $response);
+        $uri = $request->server['request_uri'] ?? '/';
 
+        // Always allow API routes
+        if (str_starts_with($uri, '/api/')) {
+            // Check installation status for non-install API routes
+            if (!str_starts_with($uri, '/api/install/') && !$this->install->isInstalled()) {
+                $res = new \LightLogger\Http\Response($response);
+                $res->cors();
+                $res->error('Application not installed', 503, ['redirect' => '/setup']);
+                return;
+            }
+
+            $this->router->dispatch($request, $response);
+            return;
+        }
+
+        // Allow health check route
+        if ($uri === '/health') {
+            $this->router->dispatch($request, $response);
+            return;
+        }
+
+        // Serve static files from panel/dist
+        $this->serveStaticOrSpa($request, $response);
+    }
+
+    /**
+     * Serve static files or SPA fallback.
+     */
+    private function serveStaticOrSpa(Request $request, Response $response): void
+    {
+        $uri = $request->server['request_uri'] ?? '/';
+
+        // Clean path to prevent directory traversal
+        $path = parse_url($uri, PHP_URL_PATH);
+        $path = str_replace(['..', '//'], '', $path);
+
+        // Check if panel dist exists
+        if (!is_dir($this->panelPath)) {
+            $this->serveInstallPlaceholder($response);
+            return;
+        }
+
+        // Try to serve static file (CSS, JS, images, etc)
+        $filePath = $this->panelPath . $path;
+
+        if ($path !== '/' && is_file($filePath)) {
+            $this->serveFile($response, $filePath);
+            return;
+        }
+
+        // SPA fallback - always serve index.html for routes
+        // The Vue router will handle checking installation status
+        $indexPath = $this->panelPath . '/index.html';
+        if (is_file($indexPath)) {
+            $this->serveFile($response, $indexPath);
+            return;
+        }
+
+        // No panel built yet - serve placeholder
+        $this->serveInstallPlaceholder($response);
+    }
+
+    /**
+     * Serve a static file.
+     */
+    private function serveFile(Response $response, string $filePath): void
+    {
+        $extension = pathinfo($filePath, PATHINFO_EXTENSION);
+        $mimeTypes = [
+            'html' => 'text/html',
+            'css' => 'text/css',
+            'js' => 'application/javascript',
+            'json' => 'application/json',
+            'png' => 'image/png',
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'gif' => 'image/gif',
+            'svg' => 'image/svg+xml',
+            'ico' => 'image/x-icon',
+            'woff' => 'font/woff',
+            'woff2' => 'font/woff2',
+            'ttf' => 'font/ttf',
+            'eot' => 'application/vnd.ms-fontobject',
+        ];
+
+        $contentType = $mimeTypes[$extension] ?? 'application/octet-stream';
+
+        $response->header('Content-Type', $contentType);
+        $response->header('Cache-Control', 'public, max-age=31536000');
+        $response->sendfile($filePath);
+    }
+
+    /**
+     * Serve installation placeholder when panel is not built.
+     */
+    private function serveInstallPlaceholder(Response $response): void
+    {
+        $installed = $this->install->isInstalled();
+        $statusText = $installed ? 'Installed' : 'Not Installed';
+        $statusColor = $installed ? '#10b981' : '#f59e0b';
+
+        $html = <<<HTML
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Light Logger - Setup</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #e4e4e7;
+        }
+        .container {
+            text-align: center;
+            padding: 2rem;
+            max-width: 600px;
+        }
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(90deg, #818cf8, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .status {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin: 1rem 0;
+            background: {$statusColor}20;
+            color: {$statusColor};
+            border: 1px solid {$statusColor};
+        }
+        .message {
+            color: #a1a1aa;
+            line-height: 1.6;
+            margin: 1.5rem 0;
+        }
+        .api-info {
+            background: #27272a;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-top: 2rem;
+            text-align: left;
+        }
+        .api-info h3 {
+            color: #818cf8;
+            margin-bottom: 1rem;
+            font-size: 1rem;
+        }
+        .endpoint {
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 0.875rem;
+            color: #a1a1aa;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #3f3f46;
+        }
+        .endpoint:last-child { border-bottom: none; }
+        .endpoint .method {
+            display: inline-block;
+            width: 60px;
+            color: #10b981;
+            font-weight: 600;
+        }
+        .endpoint .method.post { color: #f59e0b; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Light Logger</h1>
+        <div class="status">{$statusText}</div>
+        <p class="message">
+            The Vue.js panel has not been built yet.<br>
+            Please build the panel or use the API directly.
+        </p>
+        <div class="api-info">
+            <h3>Setup API Endpoints</h3>
+            <div class="endpoint"><span class="method">GET</span> /api/install/status</div>
+            <div class="endpoint"><span class="method">GET</span> /api/install/check</div>
+            <div class="endpoint"><span class="method post">POST</span> /api/install/test-database</div>
+            <div class="endpoint"><span class="method post">POST</span> /api/install/test-redis</div>
+            <div class="endpoint"><span class="method post">POST</span> /api/install/complete</div>
+        </div>
+    </div>
+</body>
+</html>
+HTML;
+
+        $response->header('Content-Type', 'text/html');
+        $response->end($html);
     }
 
     /* ---------------------------------------------------------

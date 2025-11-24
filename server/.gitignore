@@ -10,6 +10,9 @@ composer.phar
 .env.*
 !.env.example
 
+# Installation lock file
+.installed
+
 # ----------------------------------------
 # Logs / Runtime
 # ----------------------------------------

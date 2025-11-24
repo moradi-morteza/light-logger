@@ -1,0 +1,47 @@
+# Light Logger - PHP/Swoole Container
+FROM php:8.3-cli
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    libpq-dev \
+    libzip-dev \
+    libssl-dev \
+    libcurl4-openssl-dev \
+    unzip \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install PHP extensions
+RUN docker-php-ext-install pdo pdo_mysql pdo_pgsql zip pcntl
+
+# Install Redis extension
+RUN pecl install redis && docker-php-ext-enable redis
+
+# Install Swoole extension
+RUN pecl install swoole && docker-php-ext-enable swoole
+
+# Install Composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+# Set working directory
+WORKDIR /app
+
+# Copy application files
+COPY server/ /app/server/
+
+# Install PHP dependencies
+WORKDIR /app/server
+RUN composer install --no-dev --optimize-autoloader --no-interaction
+
+# Create panel dist directory (will be mounted in production)
+RUN mkdir -p /app/panel/dist
+
+# Expose Swoole port
+EXPOSE 9501
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:9501/health || exit 1
+
+# Start the server
+CMD ["php", "start.php"]

@@ -1,0 +1,138 @@
+version: '3.8'
+
+services:
+  # Light Logger Server (PHP/Swoole)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: light-logger-app
+    ports:
+      - "9501:9501"
+    volumes:
+      - ./server:/app/server
+      - ./panel/dist:/app/panel/dist:ro
+    environment:
+      - APP_DEBUG=true
+      - APP_HOST=0.0.0.0
+      - APP_PORT=9501
+      - APP_ENV=local
+      - APP_INSTALLED=false
+      - DB_DRIVER=mariadb
+      - DB_HOST=mariadb
+      - DB_PORT=3306
+      - DB_DATABASE=light_logger
+      - DB_USERNAME=light_logger
+      - DB_PASSWORD=secret
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=
+      - ELASTICSEARCH_HOST=elasticsearch
+      - ELASTICSEARCH_PORT=9200
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - light-logger-network
+    restart: unless-stopped
+
+  # MariaDB Database
+  mariadb:
+    image: mariadb:11
+    container_name: light-logger-mariadb
+    environment:
+      - MYSQL_ROOT_PASSWORD=rootsecret
+      - MYSQL_DATABASE=light_logger
+      - MYSQL_USER=light_logger
+      - MYSQL_PASSWORD=secret
+    volumes:
+      - mariadb-data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - light-logger-network
+    restart: unless-stopped
+
+  # PostgreSQL Database (alternative)
+  postgres:
+    image: postgres:16-alpine
+    container_name: light-logger-postgres
+    profiles:
+      - postgres
+    environment:
+      - POSTGRES_DB=light_logger
+      - POSTGRES_USER=light_logger
+      - POSTGRES_PASSWORD=secret
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U light_logger -d light_logger"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - light-logger-network
+    restart: unless-stopped
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    container_name: light-logger-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - light-logger-network
+    restart: unless-stopped
+
+  # Elasticsearch
+  elasticsearch:
+    image: elasticsearch:8.11.0
+    container_name: light-logger-elasticsearch
+    profiles:
+      - elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\"\\|\"status\":\"yellow\"'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - light-logger-network
+    restart: unless-stopped
+
+volumes:
+  mariadb-data:
+  postgres-data:
+  redis-data:
+  elasticsearch-data:
+
+networks:
+  light-logger-network:
+    driver: bridge
