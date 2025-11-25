@@ -128,7 +128,6 @@ class LoggerServer
      */
     public function onWorkerStart(Server $server, int $workerId): void
     {
-        Log::$prefix = "W{$workerId}";
         Log::success("Worker #{$workerId} started");
 
         // Run database migrations (only in first worker to avoid race conditions)

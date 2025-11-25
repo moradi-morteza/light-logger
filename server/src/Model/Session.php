@@ -66,9 +66,9 @@ class Session
         $session = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$session) {
-            Log::debug("Session not found for token: " . substr($token, 0, 16) . "...");
+            Log::info("Session not found for token: " . substr($token, 0, 16) . "...");
         } else {
-            Log::debug("Session found for user_id: " . $session['user_id']);
+            Log::info("Session found for user_id: " . $session['user_id']);
         }
 
         return $session ?: null;

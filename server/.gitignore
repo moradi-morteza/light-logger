@@ -17,7 +17,6 @@ composer.phar
 # Logs / Runtime
 # ----------------------------------------
 logs/
-log/
 *.log
 runtime/
 storage/

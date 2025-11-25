@@ -36,7 +36,7 @@ class AuthMiddleware implements Middleware
             ]);
         }
 
-        Log::debug("Verifying token: " . substr($token, 0, 16) . "...");
+        Log::info("Verifying token: " . substr($token, 0, 16) . "...");
 
         // Verify token and get user
         $user = Auth::verify($token);

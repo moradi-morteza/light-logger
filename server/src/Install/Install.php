@@ -34,7 +34,7 @@ class Install
     public function isInstalled(): bool
     {
         $exists = file_exists($this->lockFilePath);
-        Log::debug("Installation check: lock file {$this->lockFilePath} " . ($exists ? 'EXISTS' : 'NOT FOUND'));
+        Log::info("Installation check: lock file {$this->lockFilePath} " . ($exists ? 'EXISTS' : 'NOT FOUND'));
         return $exists;
     }
 
