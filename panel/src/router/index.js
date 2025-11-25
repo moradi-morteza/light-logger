@@ -42,6 +42,12 @@ const routes = [
         meta: { requiresAuth: true }
       },
       {
+        path: 'projects/:id/schema',
+        name: 'project-schema',
+        component: () => import('../views/ProjectSchema.vue'),
+        meta: { requiresAuth: true }
+      },
+      {
         path: 'logs',
         name: 'logs',
         component: () => import('../views/Dashboard.vue'), // Placeholder

@@ -74,6 +74,55 @@ export const useProjectsStore = defineStore('projects', () => {
     }
   }
 
+  async function fetchProject(id) {
+    loading.value = true
+    error.value = null
+
+    try {
+      const response = await api.get(`/api/projects/${id}`)
+      const data = await response.json()
+
+      if (data.success) {
+        return { success: true, project: data.data }
+      } else {
+        error.value = data.message
+        return { success: false, message: data.message }
+      }
+    } catch (e) {
+      error.value = 'Failed to fetch project'
+      return { success: false, message: error.value }
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function updateSchema(id, schema) {
+    loading.value = true
+    error.value = null
+
+    try {
+      const response = await api.put(`/api/projects/${id}/schema`, { schema })
+      const data = await response.json()
+
+      if (data.success) {
+        // Update the project in the list
+        const index = projects.value.findIndex(p => p.id === id)
+        if (index !== -1) {
+          projects.value[index].schema = data.data.schema
+        }
+        return { success: true, schema: data.data.schema }
+      } else {
+        error.value = data.message
+        return { success: false, message: data.message }
+      }
+    } catch (e) {
+      error.value = 'Failed to update schema'
+      return { success: false, message: error.value }
+    } finally {
+      loading.value = false
+    }
+  }
+
   return {
     projects,
     loading,
@@ -81,5 +130,7 @@ export const useProjectsStore = defineStore('projects', () => {
     fetchProjects,
     createProject,
     deleteProject,
+    fetchProject,
+    updateSchema,
   }
 })

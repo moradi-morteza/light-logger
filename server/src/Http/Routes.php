@@ -98,6 +98,10 @@ class Routes
             ->middleware($this->authMiddleware);
         $this->router->delete('/api/projects/{id}', [$this->projectController, 'destroy'])
             ->middleware($this->authMiddleware);
+        $this->router->get('/api/projects/{id}/schema', [$this->projectController, 'getSchema'])
+            ->middleware($this->authMiddleware);
+        $this->router->put('/api/projects/{id}/schema', [$this->projectController, 'updateSchema'])
+            ->middleware($this->authMiddleware);
     }
 
     /**

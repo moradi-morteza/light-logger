@@ -51,8 +51,15 @@ class Project
     public static function getAll(): array
     {
         $pdo = Database::getConnection();
-        $stmt = $pdo->query("SELECT id, name, token, created_at, updated_at FROM projects ORDER BY created_at DESC");
-        return $stmt->fetchAll();
+        $stmt = $pdo->query("SELECT id, name, token, schema, created_at, updated_at FROM projects ORDER BY created_at DESC");
+        $projects = $stmt->fetchAll();
+
+        // Decode JSON schema for each project
+        foreach ($projects as &$project) {
+            $project['schema'] = $project['schema'] ? json_decode($project['schema'], true) : null;
+        }
+
+        return $projects;
     }
 
     /**
@@ -61,9 +68,14 @@ class Project
     public static function getById(int $id): ?array
     {
         $pdo = Database::getConnection();
-        $stmt = $pdo->prepare("SELECT id, name, token, created_at, updated_at FROM projects WHERE id = :id");
+        $stmt = $pdo->prepare("SELECT id, name, token, schema, created_at, updated_at FROM projects WHERE id = :id");
         $stmt->execute(['id' => $id]);
         $result = $stmt->fetch();
+
+        if ($result) {
+            $result['schema'] = $result['schema'] ? json_decode($result['schema'], true) : null;
+        }
+
         return $result ?: null;
     }
 
@@ -73,9 +85,14 @@ class Project
     public static function getByToken(string $token): ?array
     {
         $pdo = Database::getConnection();
-        $stmt = $pdo->prepare("SELECT id, name, token, created_at, updated_at FROM projects WHERE token = :token");
+        $stmt = $pdo->prepare("SELECT id, name, token, schema, created_at, updated_at FROM projects WHERE token = :token");
         $stmt->execute(['token' => $token]);
         $result = $stmt->fetch();
+
+        if ($result) {
+            $result['schema'] = $result['schema'] ? json_decode($result['schema'], true) : null;
+        }
+
         return $result ?: null;
     }
 
@@ -110,5 +127,44 @@ class Project
     public static function tokenExists(string $token): bool
     {
         return self::getByToken($token) !== null;
+    }
+
+    /**
+     * Update project schema.
+     */
+    public static function updateSchema(int $id, array $schema): bool
+    {
+        try {
+            $pdo = Database::getConnection();
+
+            $stmt = $pdo->prepare(
+                "UPDATE projects SET schema = :schema WHERE id = :id"
+            );
+
+            $result = $stmt->execute([
+                'id' => $id,
+                'schema' => json_encode($schema),
+            ]);
+
+            if ($result && $stmt->rowCount() > 0) {
+                Log::success("Project schema updated: ID {$id}");
+                return true;
+            }
+
+            Log::warning("Project not found or schema unchanged: ID {$id}");
+            return false;
+        } catch (Exception $e) {
+            Log::error("Failed to update project schema: " . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    /**
+     * Get project schema by ID.
+     */
+    public static function getSchema(int $id): ?array
+    {
+        $project = self::getById($id);
+        return $project ? $project['schema'] : null;
     }
 }

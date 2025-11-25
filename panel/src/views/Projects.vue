@@ -122,37 +122,58 @@ function formatDate(dateString) {
       <div
         v-for="project in projectsStore.projects"
         :key="project.id"
-        class="card flex items-center justify-between hover:border-slate-600 transition-colors"
+        class="card hover:border-slate-600 transition-colors"
       >
-        <div class="flex-1">
-          <h3 class="text-lg font-semibold text-white">{{ project.name }}</h3>
-          <div class="flex items-center gap-4 mt-2 text-sm text-slate-400">
-            <div class="flex items-center gap-2">
-              <span>Token:</span>
-              <code class="px-2 py-0.5 bg-dark-400 border border-slate-800 text-slate-300">{{ maskToken(project.token) }}</code>
-              <button
-                @click="copyToken(project.token)"
-                class="p-1 hover:bg-dark-100 transition-colors"
-                title="Copy token"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-                </svg>
-              </button>
+        <div class="flex items-start justify-between mb-3">
+          <div class="flex-1">
+            <h3 class="text-lg font-semibold text-white">{{ project.name }}</h3>
+            <div class="flex items-center gap-4 mt-2 text-sm text-slate-400">
+              <div class="flex items-center gap-2">
+                <span>Token:</span>
+                <code class="px-2 py-0.5 bg-dark-400 border border-slate-800 text-slate-300">{{ maskToken(project.token) }}</code>
+                <button
+                  @click="copyToken(project.token)"
+                  class="p-1 hover:bg-dark-100 transition-colors"
+                  title="Copy token"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                  </svg>
+                </button>
+              </div>
+              <span>•</span>
+              <span>Created {{ formatDate(project.created_at) }}</span>
             </div>
-            <span>•</span>
-            <span>Created {{ formatDate(project.created_at) }}</span>
           </div>
+          <button
+            @click="openDeleteModal(project)"
+            class="p-2 text-red-400 hover:bg-red-500/10 transition-colors"
+            title="Delete project"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+            </svg>
+          </button>
         </div>
-        <button
-          @click="openDeleteModal(project)"
-          class="p-2 text-red-400 hover:bg-red-500/10 transition-colors"
-          title="Delete project"
-        >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-          </svg>
-        </button>
+
+        <!-- Schema Info -->
+        <div class="flex items-center justify-between pt-3 border-t border-slate-800">
+          <div class="text-sm">
+            <span v-if="project.schema && project.schema.fields" class="text-slate-400">
+              {{ project.schema.fields.length }} field{{ project.schema.fields.length !== 1 ? 's' : '' }} defined
+            </span>
+            <span v-else class="text-amber-400">No fields defined yet</span>
+          </div>
+          <router-link
+            :to="{ name: 'project-schema', params: { id: project.id } }"
+            class="btn btn-secondary text-sm py-1.5 px-3 flex items-center gap-2"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path>
+            </svg>
+            Define Fields
+          </router-link>
+        </div>
       </div>
     </div>
 

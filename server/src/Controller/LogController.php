@@ -4,6 +4,8 @@ namespace LightLogger\Controller;
 
 use LightLogger\Http\Request;
 use LightLogger\Http\Response;
+use LightLogger\Model\Project;
+use LightLogger\Validator\LogValidator;
 use LightLogger\Tools\Log\Log;
 
 /**
@@ -11,10 +13,11 @@ use LightLogger\Tools\Log\Log;
  */
 class LogController extends Controller
 {
+    private LogValidator $validator;
 
     public function __construct()
     {
-
+        $this->validator = new LogValidator();
     }
 
 
@@ -25,6 +28,22 @@ class LogController extends Controller
     public function ingest(Request $request, Response $response): void
     {
         $response->cors();
+
+        // Get project token from Authorization header
+        $authHeader = $request->getHeader('Authorization');
+        if (!$authHeader || !preg_match('/^Bearer\s+(.+)$/i', $authHeader, $matches)) {
+            $this->error($response, 'Missing or invalid Authorization header. Use: Bearer YOUR_PROJECT_TOKEN', 401);
+            return;
+        }
+
+        $token = $matches[1];
+
+        // Verify project exists
+        $project = Project::getByToken($token);
+        if (!$project) {
+            $this->error($response, 'Invalid project token', 401);
+            return;
+        }
 
         // Parse log data
         $data = $request->json();
@@ -40,7 +59,20 @@ class LogController extends Controller
         $errors = [];
 
         foreach ($logs as $index => $logData) {
-            // handle
+            // Add project_id to log data
+            $logData['project_id'] = $project['id'];
+
+            // Validate log against schema
+            if (!$this->validator->validate($logData, $project['schema'])) {
+                $errors[] = [
+                    'index' => $index,
+                    'errors' => $this->validator->getErrors(),
+                ];
+                continue;
+            }
+
+            // Log is valid
+            $entries[] = $logData;
         }
 
         if (!empty($errors)) {
@@ -55,11 +87,13 @@ class LogController extends Controller
             return;
         }
 
-        Log::info("Received " . count($entries));
+        // TODO: Send validated logs to Elasticsearch
+        Log::info("Received " . count($entries) . " valid log(s) for project: {$project['name']}");
 
         $this->success($response, [
             'accepted' => count($entries),
-        ], 'Logs received');
+            'project' => $project['name'],
+        ], 'Logs received successfully');
     }
 
     /**
