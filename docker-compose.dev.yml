@@ -12,7 +12,7 @@ services:
     volumes:
       - ./server:/app/server  # Mount source for live reload
       - /app/server/vendor    # Preserve vendor from image
-      - app-data:/app/server-data
+      - app-data-dev:/app/server-data
       - ./panel/dist:/app/panel/dist:ro
     environment:
       - APP_DEBUG=true
@@ -65,7 +65,7 @@ services:
       - MYSQL_USER=light_logger
       - MYSQL_PASSWORD=secret
     volumes:
-      - mariadb-data:/var/lib/mysql
+      - mariadb-data-dev:/var/lib/mysql
     ports:
       - "3306:3306"
     healthcheck:
@@ -84,7 +84,7 @@ services:
     container_name: light-logger-redis
     command: redis-server --appendonly yes
     volumes:
-      - redis-data:/data
+      - redis-data-dev:/data
     ports:
       - "6379:6379"
     healthcheck:
@@ -97,9 +97,9 @@ services:
     restart: unless-stopped
 
 volumes:
-  app-data:
-  mariadb-data:
-  redis-data:
+  app-data-dev:
+  mariadb-data-dev:
+  redis-data-dev:
   panel-node-modules:
 
 networks:
