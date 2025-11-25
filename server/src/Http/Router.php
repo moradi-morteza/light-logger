@@ -105,6 +105,9 @@ class Router
         $request = new Request($swooleRequest);
         $response = new Response($swooleResponse);
 
+        // Set CORS headers for all API requests
+        $response->cors();
+
         $method = $request->getMethod();
         $uri = $request->getUri();
 
