@@ -1,21 +1,24 @@
 version: '3.8'
 
 services:
-  # Light Logger Server (PHP/Swoole)
+  # Light Logger Server (PHP/Swoole) - Development Mode
   app:
     build:
       context: .
-      dockerfile: Dockerfile
-    container_name: light-logger-app
+      dockerfile: Dockerfile.dev
+    container_name: light-logger-app-dev
     ports:
       - "9501:9501"
     volumes:
-      - app-data:/app/server-data  # Writable volume for .installed, .env
+      - ./server:/app/server  # Mount source for live reload
+      - /app/server/vendor    # Preserve vendor from image
+      - app-data:/app/server-data
+      - ./panel/dist:/app/panel/dist:ro
     environment:
-      - APP_DEBUG=false
+      - APP_DEBUG=true
       - APP_HOST=0.0.0.0
       - APP_PORT=9501
-      - APP_ENV=production
+      - APP_ENV=local
       - APP_INSTALLED=false
       - DB_DRIVER=mariadb
       - DB_HOST=mariadb
@@ -33,6 +36,21 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    networks:
+      - light-logger-network
+    restart: unless-stopped
+
+  # Panel Development Server (Vite)
+  panel-dev:
+    image: node:20-slim
+    container_name: light-logger-panel-dev
+    working_dir: /app
+    volumes:
+      - ./panel:/app
+      - panel-node-modules:/app/node_modules  # Use named volume for node_modules
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    ports:
+      - "3000:3000"  # Vite dev server
     networks:
       - light-logger-network
     restart: unless-stopped
@@ -60,30 +78,6 @@ services:
       - light-logger-network
     restart: unless-stopped
 
-  # PostgreSQL Database (alternative)
-  postgres:
-    image: postgres:16-alpine
-    container_name: light-logger-postgres
-    profiles:
-      - postgres
-    environment:
-      - POSTGRES_DB=light_logger
-      - POSTGRES_USER=light_logger
-      - POSTGRES_PASSWORD=secret
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U light_logger -d light_logger"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-    networks:
-      - light-logger-network
-    restart: unless-stopped
-
   # Redis
   redis:
     image: redis:7-alpine
@@ -102,36 +96,11 @@ services:
       - light-logger-network
     restart: unless-stopped
 
-  # Elasticsearch
-  elasticsearch:
-    image: elasticsearch:8.11.0
-    container_name: light-logger-elasticsearch
-    profiles:
-      - elasticsearch
-    environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-    volumes:
-      - elasticsearch-data:/usr/share/elasticsearch/data
-    ports:
-      - "9200:9200"
-    healthcheck:
-      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\"\\|\"status\":\"yellow\"'"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
-    networks:
-      - light-logger-network
-    restart: unless-stopped
-
 volumes:
   app-data:
   mariadb-data:
-  postgres-data:
   redis-data:
-  elasticsearch-data:
+  panel-node-modules:
 
 networks:
   light-logger-network:

@@ -1,21 +1,4 @@
-# Stage 1: Build Panel (Vue.js Frontend)
-FROM node:20-alpine AS panel-builder
-
-WORKDIR /app/panel
-
-# Copy panel package files
-COPY panel/package*.json ./
-
-# Install dependencies
-RUN npm install
-
-# Copy panel source code
-COPY panel/ ./
-
-# Build the panel
-RUN npm run build
-
-# Stage 2: PHP/Swoole Server
+# Development Dockerfile - PHP/Swoole Server Only
 FROM php:8.3-cli
 
 # Install system dependencies
@@ -44,21 +27,15 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 # Set working directory
 WORKDIR /app
 
-# Copy composer files first for better caching
-COPY server/composer.json server/composer.lock /app/server/
+# Copy application files
+COPY server/ /app/server/
 
 # Install PHP dependencies
 WORKDIR /app/server
-RUN composer install --no-dev --optimize-autoloader --no-interaction
+RUN composer install --optimize-autoloader --no-interaction
 
-# Copy application files (after composer install to ensure fresh vendor)
-COPY server/ /app/server/
-
-# Copy built panel from stage 1
-COPY --from=panel-builder /app/panel/dist /app/panel/dist
-
-# Ensure working directory for runtime
-WORKDIR /app/server
+# Create panel dist directory
+RUN mkdir -p /app/panel/dist
 
 # Expose Swoole port
 EXPOSE 9501
